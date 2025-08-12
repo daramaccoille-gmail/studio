@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition, FormEvent } from 'react';
-import { CandlestickChart, Loader, Search } from 'lucide-react';
+import { CandlestickChart, Loader, Search, ArrowRightLeft } from 'lucide-react';
 import { getStockDataAndAnalysis } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +10,22 @@ import { useToast } from '@/hooks/use-toast';
 import StockChart from '@/components/stock-chart';
 import AiAnalysisCard from '@/components/ai-analysis-card';
 import type { StockData } from '@/lib/types';
-import Logo from '@/components/logo';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type Interval = 'M5' | 'M30' | 'H1' | 'D1';
+type DataType = 'stock' | 'forex';
+
+const popularCurrencies = [
+  'EUR', 'USD', 'JPY', 'GBP', 'CHF', 'AUD', 'CAD', 'NZD', 'CNY'
+];
+
 
 export default function Home() {
   const [symbol, setSymbol] = useState('IBM');
@@ -22,13 +35,46 @@ export default function Home() {
   const [analysis, setAnalysis] = useState<string>('');
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const [dataType, setDataType] = useState<DataType>('stock');
+  const [fromCurrency, setFromCurrency] = useState('EUR');
+  const [toCurrency, setToCurrency] = useState('USD');
+  const [displaySymbol, setDisplaySymbol] = useState('IBM');
 
-  const handleFetchData = (fetchSymbol: string, fetchInterval: Interval) => {
+  const handleFetchData = (params: {
+      fetchInterval: Interval,
+      fetchType: DataType,
+      fetchSymbol?: string,
+      fetchFromCurrency?: string,
+      fetchToCurrency?: string
+  }) => {
     startTransition(async () => {
-      const result = await getStockDataAndAnalysis({
-        symbol: fetchSymbol,
-        interval: fetchInterval,
-      });
+      const { fetchInterval, fetchType, fetchSymbol, fetchFromCurrency, fetchToCurrency } = params;
+
+      let result;
+      if (fetchType === 'stock') {
+          result = await getStockDataAndAnalysis({
+          symbol: fetchSymbol,
+          interval: fetchInterval,
+          type: 'stock',
+        });
+        if (!result.error) {
+            setDisplaySymbol(fetchSymbol!);
+            setSymbol(fetchSymbol!);
+        }
+      } else {
+        result = await getStockDataAndAnalysis({
+          interval: fetchInterval,
+          type: 'forex',
+          fromCurrency: fetchFromCurrency,
+          toCurrency: fetchToCurrency,
+        });
+        if (!result.error) {
+            const forexSymbol = `${fetchFromCurrency}/${fetchToCurrency}`;
+            setDisplaySymbol(forexSymbol);
+            setFromCurrency(fetchFromCurrency!);
+            setToCurrency(fetchToCurrency!);
+        }
+      }
 
       if (result.error) {
         toast({
@@ -41,28 +87,42 @@ export default function Home() {
       } else {
         setData(result.data || []);
         setAnalysis(result.analysis || '');
-        setSymbol(fetchSymbol);
       }
     });
   };
 
   useEffect(() => {
-    handleFetchData(symbol, interval);
+    handleFetchData({ fetchSymbol: symbol, fetchInterval: interval, fetchType: 'stock' });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (inputSymbol.trim()) {
-      handleFetchData(inputSymbol.trim().toUpperCase(), interval);
+    if (dataType === 'stock' && inputSymbol.trim()) {
+      handleFetchData({ fetchSymbol: inputSymbol.trim().toUpperCase(), fetchInterval: interval, fetchType: 'stock' });
+    } else if (dataType === 'forex' && fromCurrency && toCurrency) {
+      handleFetchData({ fetchFromCurrency: fromCurrency, fetchToCurrency: toCurrency, fetchInterval: interval, fetchType: 'forex' });
     }
   };
 
   const handleIntervalChange = (value: string) => {
     const newInterval = value as Interval;
     setInterval(newInterval);
-    handleFetchData(symbol, newInterval);
+     if (dataType === 'stock') {
+      handleFetchData({ fetchSymbol: symbol, fetchInterval: newInterval, fetchType: 'stock' });
+    } else {
+      handleFetchData({ fetchFromCurrency: fromCurrency, fetchToCurrency: toCurrency, fetchInterval: newInterval, fetchType: 'forex' });
+    }
   };
+
+  const handleDataTypeChange = (value: string) => {
+    const newType = value as DataType;
+    setDataType(newType);
+    setData([]);
+    setAnalysis('');
+    setDisplaySymbol(newType === 'stock' ? symbol : `${fromCurrency}/${toCurrency}`);
+  };
+
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -80,22 +140,66 @@ export default function Home() {
           <div className="grid gap-8 lg:grid-cols-12">
             <div className="lg:col-span-3">
               <div className="space-y-6 sticky top-20">
+                <div className="space-y-2">
+                    <h2 className="text-lg font-semibold">Data Type</h2>
+                    <Tabs value={dataType} onValueChange={handleDataTypeChange} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="stock">Stocks</TabsTrigger>
+                            <TabsTrigger value="forex">Forex</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
+                
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <h2 className="text-lg font-semibold">Stock Symbol</h2>
-                    <div className="flex w-full items-center space-x-2">
-                      <Input
-                        type="text"
-                        placeholder="e.g. AAPL"
-                        value={inputSymbol}
-                        onChange={(e) => setInputSymbol(e.target.value)}
-                        className="bg-card"
-                      />
-                      <Button type="submit" disabled={isPending}>
-                        {isPending ? <Loader className="animate-spin" /> : <Search />}
-                      </Button>
+                  {dataType === 'stock' ? (
+                     <div className="space-y-2">
+                      <Label htmlFor="stock-symbol" className="text-lg font-semibold">Stock Symbol</Label>
+                      <div className="flex w-full items-center space-x-2">
+                        <Input
+                          id="stock-symbol"
+                          type="text"
+                          placeholder="e.g. AAPL"
+                          value={inputSymbol}
+                          onChange={(e) => setInputSymbol(e.target.value)}
+                          className="bg-card"
+                        />
+                        <Button type="submit" disabled={isPending}>
+                          {isPending ? <Loader className="animate-spin" /> : <Search />}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                           <Label htmlFor="from-currency" className="text-lg font-semibold">From Currency</Label>
+                            <Select value={fromCurrency} onValueChange={setFromCurrency}>
+                                <SelectTrigger id="from-currency">
+                                    <SelectValue placeholder="From" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {popularCurrencies.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <div className="flex justify-center">
+                            <ArrowRightLeft className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div className="space-y-2">
+                             <Label htmlFor="to-currency" className="text-lg font-semibold">To Currency</Label>
+                            <Select value={toCurrency} onValueChange={setToCurrency}>
+                                <SelectTrigger id="to-currency">
+                                    <SelectValue placeholder="To" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {popularCurrencies.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button type="submit" disabled={isPending} className="w-full">
+                          {isPending ? <Loader className="animate-spin" /> : 'Get Forex Data'}
+                        </Button>
+                    </div>
+                  )}
                 </form>
 
                 <div className="space-y-2">
@@ -115,7 +219,7 @@ export default function Home() {
             </div>
 
             <div className="lg:col-span-9">
-              <StockChart data={data} isLoading={isPending} symbol={symbol} />
+              <StockChart data={data} isLoading={isPending} symbol={displaySymbol} />
             </div>
           </div>
         </div>

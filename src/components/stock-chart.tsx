@@ -21,20 +21,32 @@ interface StockChartProps {
 }
 
 const CustomCandlestick = (props: any) => {
-  const { x, y, width, height, payload } = props;
-  const { open, close, high, low } = payload;
+  const { x, y, width, height, payload, open, close } = props;
   
-  const isBullish = close >= open;
+  const isBullish = payload.close >= payload.open;
   const fill = isBullish ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))';
+  
+  const high = payload.high;
+  const low = payload.low;
+
+  const yRender = isBullish ? y + (payload.open - payload.close) : y;
+  const heightRender = Math.max(1, Math.abs(payload.open - payload.close));
+
+  const yDomain = props.yAxis.domain;
+  const yRange = props.yAxis.range;
+  const yRatio = (yRange[0] - yRange[1]) / (yDomain[1] - yDomain[0]);
+  
+  const highCoord = yRange[0] - (high - yDomain[0]) * yRatio;
+  const lowCoord = yRange[0] - (low - yDomain[0]) * yRatio;
 
   return (
     <g>
-      <line x1={x + width / 2} y1={y} x2={x + width / 2} y2={y + height} stroke={fill} />
+      <line x1={x + width / 2} y1={highCoord} x2={x + width / 2} y2={lowCoord} stroke={fill} />
       <rect
         x={x}
-        y={isBullish ? y + (open-close) : y}
+        y={yRender}
         width={width}
-        height={Math.max(1, Math.abs(open - close))}
+        height={heightRender}
         fill={fill}
       />
     </g>
@@ -48,10 +60,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <Card className="text-sm">
         <CardContent className="p-2">
           <p className="font-bold">{format(new Date(data.date), 'PPpp')}</p>
-          <p>Open: {data.open.toFixed(2)}</p>
-          <p>High: {data.high.toFixed(2)}</p>
-          <p>Low: {data.low.toFixed(2)}</p>
-          <p>Close: {data.close.toFixed(2)}</p>
+          <p>Open: {data.open.toFixed(5)}</p>
+          <p>High: {data.high.toFixed(5)}</p>
+          <p>Low: {data.low.toFixed(5)}</p>
+          <p>Close: {data.close.toFixed(5)}</p>
         </CardContent>
       </Card>
     );
@@ -96,6 +108,10 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
     Math.min(...data.map(d => d.low)),
     Math.max(...data.map(d => d.high))
   ];
+  const yAxisTickFormatter = (value: number) => {
+    const isForex = symbol.includes('/');
+    return isForex ? value.toFixed(5) : value.toFixed(2);
+  }
   
   return (
     <Card>
@@ -123,7 +139,7 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
               <YAxis
                 domain={domain}
                 orientation="right"
-                tickFormatter={(value) => value.toFixed(2)}
+                tickFormatter={yAxisTickFormatter}
                 tick={{ fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}

@@ -4,40 +4,67 @@ import { analyzeCandlestickPattern } from '@/ai/flows/analyze-candlestick-patter
 import type { StockData } from '@/lib/types';
 
 interface ActionParams {
-  symbol: string;
+  symbol?: string;
   interval: 'M5' | 'M30' | 'H1' | 'D1';
+  type: 'stock' | 'forex';
+  fromCurrency?: string;
+  toCurrency?: string;
 }
 
 interface IntervalMapping {
   [key: string]: {
-    apiFunction: 'TIME_SERIES_INTRADAY' | 'TIME_SERIES_DAILY';
+    apiFunction: 'TIME_SERIES_INTRADAY' | 'TIME_SERIES_DAILY' | 'FX_INTRADAY' | 'FX_DAILY';
     apiInterval?: '5min' | '30min' | '60min';
-    dataKey: 'Time Series (5min)' | 'Time Series (30min)' | 'Time Series (60min)' | 'Time Series (Daily)';
+    dataKey: 'Time Series (5min)' | 'Time Series (30min)' | 'Time Series (60min)' | 'Time Series (Daily)' | 'Time Series FX (5min)' | 'Time Series FX (30min)' | 'Time Series FX (60min)' | 'Time Series FX (Daily)';
   };
 }
 
-const intervalMap: IntervalMapping = {
+const stockIntervalMap: IntervalMapping = {
   M5: { apiFunction: 'TIME_SERIES_INTRADAY', apiInterval: '5min', dataKey: 'Time Series (5min)' },
   M30: { apiFunction: 'TIME_SERIES_INTRADAY', apiInterval: '30min', dataKey: 'Time Series (30min)' },
   H1: { apiFunction: 'TIME_SERIES_INTRADAY', apiInterval: '60min', dataKey: 'Time Series (60min)' },
   D1: { apiFunction: 'TIME_SERIES_DAILY', dataKey: 'Time Series (Daily)' },
 };
 
-export async function getStockDataAndAnalysis({ symbol, interval }: ActionParams) {
+const forexIntervalMap: IntervalMapping = {
+  M5: { apiFunction: 'FX_INTRADAY', apiInterval: '5min', dataKey: 'Time Series FX (5min)' },
+  M30: { apiFunction: 'FX_INTRADAY', apiInterval: '30min', dataKey: 'Time Series FX (30min)' },
+  H1: { apiFunction: 'FX_INTRADAY', apiInterval: '60min', dataKey: 'Time Series FX (60min)' },
+  D1: { apiFunction: 'FX_DAILY', dataKey: 'Time Series FX (Daily)' },
+};
+
+
+export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurrency, toCurrency }: ActionParams) {
   const apiKey = process.env.ALPHAVANTAGE_API_KEY;
 
   if (!apiKey) {
     return { error: 'AlphaVantage API key is not configured.' };
   }
 
-  const { apiFunction, apiInterval, dataKey } = intervalMap[interval];
-  
-  //let url = `https://www.alphavantage.co/query?function=${apiFunction}&symbol=${symbol}&apikey=${apiKey}`;
-  let url = `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=XAU&apikey=${apiKey}`;
-  
-  if (apiInterval) {
-    url += `&interval=${apiInterval}`;
+  let url;
+  let dataKey;
+  let analysisSymbol;
+
+  if (type === 'stock') {
+    if (!symbol) return { error: "Stock symbol is required." };
+    const stockMap = stockIntervalMap[interval];
+    url = `https://www.alphavantage.co/query?function=${stockMap.apiFunction}&symbol=${symbol}&apikey=${apiKey}`;
+    if (stockMap.apiInterval) {
+      url += `&interval=${stockMap.apiInterval}`;
+    }
+    dataKey = stockMap.dataKey;
+    analysisSymbol = symbol;
+  } else { // forex
+    if (!fromCurrency || !toCurrency) return { error: "From and To currencies are required for forex." };
+    const forexMap = forexIntervalMap[interval];
+    url = `https://www.alphavantage.co/query?function=${forexMap.apiFunction}&from_symbol=${fromCurrency}&to_symbol=${toCurrency}&apikey=${apiKey}`;
+    if (forexMap.apiInterval) {
+      url += `&interval=${forexMap.apiInterval}`;
+    }
+    dataKey = forexMap.dataKey;
+    analysisSymbol = `${fromCurrency}/${toCurrency}`;
   }
+
 
   try {
     const response = await fetch(url);
@@ -55,7 +82,7 @@ export async function getStockDataAndAnalysis({ symbol, interval }: ActionParams
 
     const timeSeries = rawData[dataKey];
     if (!timeSeries) {
-      throw new Error('Could not find time series data in the response. The symbol may be invalid or the API limit reached.');
+      throw new Error('Could not find time series data in the response. The symbol/currency may be invalid or the API limit reached.');
     }
 
     const formattedData: StockData[] = Object.entries(timeSeries)
@@ -69,13 +96,13 @@ export async function getStockDataAndAnalysis({ symbol, interval }: ActionParams
       .reverse();
 
     if (formattedData.length === 0) {
-      return { error: 'No data returned for this symbol and interval.' };
+      return { error: 'No data returned for this symbol/currency and interval.' };
     }
 
     const analysisResult = await analyzeCandlestickPattern({
       graphData: JSON.stringify(formattedData.slice(-50)), // Send last 50 points for analysis
       interval,
-      symbol,
+      symbol: analysisSymbol,
     });
     
     return { data: formattedData, analysis: analysisResult.analysis };
