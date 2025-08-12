@@ -21,8 +21,10 @@ interface StockChartProps {
 }
 
 const CustomCandlestick = (props: any) => {
-  const { x, y, width, height, payload, open, close } = props;
+  const { x, y, width, payload, yAxis } = props;
   
+  if (!payload || !yAxis) return null;
+
   const isBullish = payload.close >= payload.open;
   const fill = isBullish ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))';
   
@@ -31,9 +33,9 @@ const CustomCandlestick = (props: any) => {
 
   const yRender = isBullish ? y + (payload.open - payload.close) : y;
   const heightRender = Math.max(1, Math.abs(payload.open - payload.close));
-
-  const yDomain = props.yAxis.domain;
-  const yRange = props.yAxis.range;
+  
+  const yDomain = yAxis.domain;
+  const yRange = yAxis.range;
   const yRatio = (yRange[0] - yRange[1]) / (yDomain[1] - yDomain[0]);
   
   const highCoord = yRange[0] - (high - yDomain[0]) * yRatio;
