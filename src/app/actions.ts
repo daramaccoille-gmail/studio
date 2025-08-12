@@ -32,7 +32,9 @@ export async function getStockDataAndAnalysis({ symbol, interval }: ActionParams
 
   const { apiFunction, apiInterval, dataKey } = intervalMap[interval];
   
-  let url = `https://www.alphavantage.co/query?function=${apiFunction}&symbol=${symbol}&apikey=${apiKey}`;
+  //let url = `https://www.alphavantage.co/query?function=${apiFunction}&symbol=${symbol}&apikey=${apiKey}`;
+  let url = `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=XAU&apikey=${apiKey}`;
+  
   if (apiInterval) {
     url += `&interval=${apiInterval}`;
   }

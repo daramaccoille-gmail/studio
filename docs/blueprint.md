@@ -1,4 +1,4 @@
-# **App Name**: CandleView
+# **App Name**: Greenback
 
 ## Core Features:
 
