@@ -98,6 +98,7 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
        return { error: `API Limit Note: ${rawData['Note']}` };
     }
 
+    console.log("Raw API response:", rawData);
     const timeSeries = rawData[dataKey];
     if (!timeSeries) {
       const errorMessage = isCommodity 
