@@ -27,7 +27,7 @@ export default function Home() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const [dataType, setDataType] = useState<DataType>('stock');
-  const [fromCurrency, setFromCurrency] = useState('EUR');
+  const [fromCurrency, setFromCurrency] = useState('XAU');
   const [toCurrency, setToCurrency] = useState('USD');
   const [commodity, setCommodity] = useState('WTI');
   const [displaySymbol, setDisplaySymbol] = useState('IBM');
@@ -246,7 +246,7 @@ export default function Home() {
                       <TabsTrigger value="M5" disabled={isPending}>5M</TabsTrigger>
                       <TabsTrigger value="M30" disabled={isPending}>30M</TabsTrigger>
                       <TabsTrigger value="H1" disabled={isPending}>1H</TabsTrigger>
-                      <TabsTrigger value="D1" disabled_isPending>1D</TabsTrigger>
+                      <TabsTrigger value="D1" disabled={isPending}>1D</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
