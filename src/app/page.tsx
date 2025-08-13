@@ -11,21 +11,11 @@ import StockChart from '@/components/stock-chart';
 import AiAnalysisCard from '@/components/ai-analysis-card';
 import type { StockData } from '@/lib/types';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { CurrencyCombobox } from '@/components/currency-combobox';
+
 
 type Interval = 'M5' | 'M30' | 'H1' | 'D1';
 type DataType = 'stock' | 'forex';
-
-const popularCurrencies = [
-  'EUR', 'USD', 'JPY', 'GBP', 'CHF', 'AUD', 'CAD', 'NZD', 'CNY'
-];
-
 
 export default function Home() {
   const [symbol, setSymbol] = useState('IBM');
@@ -121,6 +111,11 @@ export default function Home() {
     setData([]);
     setAnalysis('');
     setDisplaySymbol(newType === 'stock' ? symbol : `${fromCurrency}/${toCurrency}`);
+    if (newType === 'forex' && fromCurrency && toCurrency) {
+        handleFetchData({ fetchInterval: interval, fetchType: 'forex', fetchFromCurrency: fromCurrency, fetchToCurrency: toCurrency });
+    } else if (newType === 'stock' && symbol) {
+        handleFetchData({ fetchInterval: interval, fetchType: 'stock', fetchSymbol: symbol });
+    }
   };
 
 
@@ -172,28 +167,22 @@ export default function Home() {
                     <div className="space-y-4">
                         <div className="space-y-2">
                            <Label htmlFor="from-currency" className="text-lg font-semibold">From Currency</Label>
-                            <Select value={fromCurrency} onValueChange={setFromCurrency}>
-                                <SelectTrigger id="from-currency">
-                                    <SelectValue placeholder="From" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {popularCurrencies.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                           <CurrencyCombobox
+                              value={fromCurrency}
+                              onChange={setFromCurrency}
+                              placeholder="From"
+                            />
                         </div>
                          <div className="flex justify-center">
                             <ArrowRightLeft className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div className="space-y-2">
                              <Label htmlFor="to-currency" className="text-lg font-semibold">To Currency</Label>
-                            <Select value={toCurrency} onValueChange={setToCurrency}>
-                                <SelectTrigger id="to-currency">
-                                    <SelectValue placeholder="To" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {popularCurrencies.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <CurrencyCombobox
+                              value={toCurrency}
+                              onChange={setToCurrency}
+                              placeholder="To"
+                            />
                         </div>
                         <Button type="submit" disabled={isPending} className="w-full">
                           {isPending ? <Loader className="animate-spin" /> : 'Get Forex Data'}
