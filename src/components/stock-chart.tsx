@@ -1,8 +1,9 @@
 'use client';
 
 import {
-  Bar,
-  BarChart,
+  Line,
+  LineChart,
+  ComposedChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -22,42 +23,61 @@ interface StockChartProps {
 }
 
 const Candlestick = (props: any) => {
-  const { x, y, width, height, low, high, open, close } = props;
+  const { x, y, width, height, low, high, open, close } = props.payload;
+  const {yAxis} = props;
+
+  if (!yAxis || !yAxis.domain) {
+    return null; // Don't render if yAxis properties are not available
+  }
+  
   const isBullish = close >= open;
   const fill = isBullish ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))';
   const stroke = fill;
 
+  const yDomain = yAxis.domain;
+  const yRange = yAxis.range;
+  const yRatio = (yRange[0] - yRange[1]) / (yDomain[1] - yDomain[0]);
+  
+  const yVal = (val: number) => yRange[1] + (yDomain[1] - val) * yRatio;
+
+  const yOpen = yVal(open);
+  const yClose = yVal(close);
+  const yHigh = yVal(high);
+  const yLow = yVal(low);
+
+  const rectY = Math.min(yOpen, yClose);
+  const rectHeight = Math.max(1, Math.abs(yOpen - yClose));
+
   return (
-    <g stroke={stroke} fill="none" strokeWidth="1">
+     <g stroke={stroke} fill="none" strokeWidth="1">
+       {/* Wick */}
       <path
-        d={`M ${x + width / 2},${y} L ${x + width / 2},${y - (high - Math.max(open, close))}`}
+        d={`M ${x + width / 2},${yHigh} L ${x + width / 2},${yLow}`}
       />
-      <path
-        d={`M ${x + width / 2},${y + height} L ${x + width / 2},${y + height + (Math.min(open, close) - low)}`}
-      />
-      <Rectangle
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        fill={fill}
-      />
-    </g>
+       {/* Body */}
+       <rect
+         x={x}
+         y={rectY}
+         width={width}
+         height={rectHeight}
+         fill={fill}
+       />
+     </g>
   );
 };
+
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
-    const ohlc = data.ohlc;
     return (
       <Card className="text-sm">
         <CardContent className="p-2">
           <p className="font-bold">{format(new Date(data.date), 'PPpp')}</p>
-          <p>Open: {ohlc[0].toFixed(5)}</p>
-          <p>High: {ohlc[1].toFixed(5)}</p>
-          <p>Low: {ohlc[2].toFixed(5)}</p>
-          <p>Close: {ohlc[3].toFixed(5)}</p>
+          <p>Open: {data.open.toFixed(5)}</p>
+          <p>High: {data.high.toFixed(5)}</p>
+          <p>Low: {data.low.toFixed(5)}</p>
+          <p>Close: {data.close.toFixed(5)}</p>
         </CardContent>
       </Card>
     );
@@ -98,10 +118,9 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
     );
   }
   
-  const chartData = data.map(d => ({
-    date: d.date,
-    ohlc: [d.open, d.high, d.low, d.close]
-  }));
+  const chartData = data;
+  const isCommodity = data.every(d => d.open === d.high && d.open === d.low && d.open === d.close);
+
 
   const domain: [number, number] = [
     Math.min(...data.map(d => d.low)),
@@ -116,7 +135,7 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{symbol} Candlestick Chart</CardTitle>
+        <CardTitle>{symbol} {isCommodity ? 'Chart' : 'Candlestick Chart'}</CardTitle>
         <CardDescription>
           Showing financial data for {symbol}. Hover over the chart for details.
         </CardDescription>
@@ -124,10 +143,10 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
       <CardContent>
         <div className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            >
+             <ComposedChart
+                data={chartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis 
                 dataKey="date" 
@@ -135,6 +154,7 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
                 tick={{ fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
+                // interval="preserveStartEnd"
               />
               <YAxis
                 domain={domain}
@@ -145,12 +165,19 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
                 tickLine={false}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
-              <Bar
-                dataKey="ohlc"
-                shape={<Candlestick />}
-              >
-              </Bar>
-            </BarChart>
+              
+                {isCommodity ? (
+                    <Line type="monotone" dataKey="close" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
+                ) : (
+                    <Line
+                        type="linear"
+                        dataKey="close"
+                        strokeWidth={0}
+                        shape={<Candlestick />}
+                        isAnimationActive={false}
+                     />
+                )}
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </CardContent>

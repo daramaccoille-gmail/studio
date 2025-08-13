@@ -2,6 +2,7 @@
 
 import { analyzeCandlestickPattern } from '@/ai/flows/analyze-candlestick-pattern';
 import type { StockData } from '@/lib/types';
+import { commodities } from '@/lib/currencies';
 
 interface ActionParams {
   symbol?: string;
@@ -13,9 +14,9 @@ interface ActionParams {
 
 interface IntervalMapping {
   [key: string]: {
-    apiFunction: 'TIME_SERIES_INTRADAY' | 'TIME_SERIES_DAILY' | 'FX_INTRADAY' | 'FX_DAILY';
-    apiInterval?: '5min' | '30min' | '60min';
-    dataKey: 'Time Series (5min)' | 'Time Series (30min)' | 'Time Series (60min)' | 'Time Series (Daily)' | 'Time Series FX (5min)' | 'Time Series FX (30min)' | 'Time Series FX (60min)' | 'Time Series FX (Daily)';
+    apiFunction: 'TIME_SERIES_INTRADAY' | 'TIME_SERIES_DAILY' | 'FX_INTRADAY' | 'FX_DAILY' | 'COMMODITIES';
+    apiInterval?: '5min' | '30min' | '60min' | 'daily';
+    dataKey: string;
   };
 }
 
@@ -33,6 +34,13 @@ const forexIntervalMap: IntervalMapping = {
   D1: { apiFunction: 'FX_DAILY', dataKey: 'Time Series FX (Daily)' },
 };
 
+const commodityIntervalMap: Omit<IntervalMapping, 'D1'> & { D1: { apiFunction: 'COMMODITIES'; apiInterval: 'daily', dataKey: string } } = {
+    M5: { apiFunction: 'COMMODITIES', apiInterval: '5min', dataKey: 'data' },
+    M30: { apiFunction: 'COMMODITIES', apiInterval: '30min', dataKey: 'data' },
+    H1: { apiFunction: 'COMMODITIES', apiInterval: '60min', dataKey: 'data' },
+    D1: { apiFunction: 'COMMODITIES', apiInterval: 'daily', dataKey: 'data' },
+};
+
 
 export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurrency, toCurrency }: ActionParams) {
   const apiKey = process.env.ALPHAVANTAGE_API_KEY;
@@ -44,6 +52,7 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
   let url;
   let dataKey;
   let analysisSymbol;
+  let isCommodity = false;
 
   if (type === 'stock') {
     if (!symbol) return { error: "Stock symbol is required." };
@@ -54,15 +63,25 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     }
     dataKey = stockMap.dataKey;
     analysisSymbol = symbol;
-  } else { // forex
+  } else { // forex or commodity
     if (!fromCurrency || !toCurrency) return { error: "From and To currencies are required for forex." };
-    const forexMap = forexIntervalMap[interval];
-    url = `https://www.alphavantage.co/query?function=${forexMap.apiFunction}&from_symbol=${fromCurrency}&to_symbol=${toCurrency}&apikey=${apiKey}`;
-    if (forexMap.apiInterval) {
-      url += `&interval=${forexMap.apiInterval}`;
-    }
-    dataKey = forexMap.dataKey;
+    
+    isCommodity = commodities.includes(fromCurrency);
     analysisSymbol = `${fromCurrency}/${toCurrency}`;
+
+    if (isCommodity) {
+        const commodityMap = commodityIntervalMap[interval];
+        const apiInterval = interval === 'D1' ? 'daily' : commodityMap.apiInterval;
+        url = `https://www.alphavantage.co/query?function=${commodityMap.apiFunction}&symbol=${fromCurrency}&interval=${apiInterval}&apikey=${apiKey}`;
+        dataKey = commodityMap.dataKey;
+    } else {
+        const forexMap = forexIntervalMap[interval];
+        url = `https://www.alphavantage.co/query?function=${forexMap.apiFunction}&from_symbol=${fromCurrency}&to_symbol=${toCurrency}&apikey=${apiKey}`;
+        if (forexMap.apiInterval) {
+        url += `&interval=${forexMap.apiInterval}`;
+        }
+        dataKey = forexMap.dataKey;
+    }
   }
 
 
@@ -82,18 +101,36 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
 
     const timeSeries = rawData[dataKey];
     if (!timeSeries) {
-      throw new Error('Could not find time series data in the response. The symbol/currency may be invalid or the API limit reached.');
+      const errorMessage = isCommodity 
+        ? `Could not find data for commodity ${analysisSymbol}. It may not be supported or the API limit was reached.`
+        : 'Could not find time series data in the response. The symbol/currency may be invalid or the API limit reached.';
+      throw new Error(errorMessage);
+    }
+    
+    let formattedData: StockData[];
+
+    if (isCommodity) {
+        formattedData = (timeSeries as any[])
+            .map(item => ({
+                date: new Date(parseInt(item.timestamp)).toISOString(),
+                open: parseFloat(item.value),
+                high: parseFloat(item.value), // Commodity API may not provide OHLC, using value for all
+                low: parseFloat(item.value),
+                close: parseFloat(item.value),
+            }))
+            .reverse();
+    } else {
+        formattedData = Object.entries(timeSeries)
+          .map(([time, values]: [string, any]) => ({
+            date: time,
+            open: parseFloat(values['1. open']),
+            high: parseFloat(values['2. high']),
+            low: parseFloat(values['3. low']),
+            close: parseFloat(values['4. close']),
+          }))
+          .reverse();
     }
 
-    const formattedData: StockData[] = Object.entries(timeSeries)
-      .map(([time, values]: [string, any]) => ({
-        date: time,
-        open: parseFloat(values['1. open']),
-        high: parseFloat(values['2. high']),
-        low: parseFloat(values['3. low']),
-        close: parseFloat(values['4. close']),
-      }))
-      .reverse();
 
     if (formattedData.length === 0) {
       return { error: 'No data returned for this symbol/currency and interval.' };
