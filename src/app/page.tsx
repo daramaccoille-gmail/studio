@@ -25,10 +25,10 @@ export default function Home() {
   const [analysis, setAnalysis] = useState<string>('');
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const [dataType, setDataType] = useState<DataType>('stock');
-  const [fromCurrency, setFromCurrency] = useState('EUR');
+  const [dataType, setDataType] = useState<DataType>('forex');
+  const [fromCurrency, setFromCurrency] = useState('XAU');
   const [toCurrency, setToCurrency] = useState('USD');
-  const [displaySymbol, setDisplaySymbol] = useState('IBM');
+  const [displaySymbol, setDisplaySymbol] = useState('XAU/USD');
 
   const handleFetchData = (params: {
       fetchInterval: Interval,
@@ -82,7 +82,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    handleFetchData({ fetchSymbol: symbol, fetchInterval: interval, fetchType: 'stock' });
+    handleFetchData({ fetchFromCurrency: fromCurrency, fetchToCurrency: toCurrency, fetchInterval: interval, fetchType: 'forex' });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -110,10 +110,11 @@ export default function Home() {
     setDataType(newType);
     setData([]);
     setAnalysis('');
-    setDisplaySymbol(newType === 'stock' ? symbol : `${fromCurrency}/${toCurrency}`);
-    if (newType === 'forex' && fromCurrency && toCurrency) {
+    if (newType === 'forex') {
+        setDisplaySymbol(`${fromCurrency}/${toCurrency}`);
         handleFetchData({ fetchInterval: interval, fetchType: 'forex', fetchFromCurrency: fromCurrency, fetchToCurrency: toCurrency });
-    } else if (newType === 'stock' && symbol) {
+    } else { // stock
+        setDisplaySymbol(symbol);
         handleFetchData({ fetchInterval: interval, fetchType: 'stock', fetchSymbol: symbol });
     }
   };

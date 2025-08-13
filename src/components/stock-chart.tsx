@@ -8,6 +8,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  Rectangle,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Skeleton } from './ui/skeleton';
@@ -20,35 +21,25 @@ interface StockChartProps {
   symbol: string;
 }
 
-const CustomCandlestick = (props: any) => {
-  const { x, y, width, payload, yAxis } = props;
-  
-  if (!payload || !yAxis) return null;
-
-  const isBullish = payload.close >= payload.open;
+const Candlestick = (props: any) => {
+  const { x, y, width, height, low, high, open, close } = props;
+  const isBullish = close >= open;
   const fill = isBullish ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))';
-  
-  const high = payload.high;
-  const low = payload.low;
-
-  const yRender = isBullish ? y + (payload.open - payload.close) : y;
-  const heightRender = Math.max(1, Math.abs(payload.open - payload.close));
-  
-  const yDomain = yAxis.domain;
-  const yRange = yAxis.range;
-  const yRatio = (yRange[0] - yRange[1]) / (yDomain[1] - yDomain[0]);
-  
-  const highCoord = yRange[0] - (high - yDomain[0]) * yRatio;
-  const lowCoord = yRange[0] - (low - yDomain[0]) * yRatio;
+  const stroke = fill;
 
   return (
-    <g>
-      <line x1={x + width / 2} y1={highCoord} x2={x + width / 2} y2={lowCoord} stroke={fill} />
-      <rect
+    <g stroke={stroke} fill="none" strokeWidth="1">
+      <path
+        d={`M ${x + width / 2},${y} L ${x + width / 2},${y - (high - Math.max(open, close))}`}
+      />
+      <path
+        d={`M ${x + width / 2},${y + height} L ${x + width / 2},${y + height + (Math.min(open, close) - low)}`}
+      />
+      <Rectangle
         x={x}
-        y={yRender}
+        y={y}
         width={width}
-        height={heightRender}
+        height={height}
         fill={fill}
       />
     </g>
@@ -58,14 +49,15 @@ const CustomCandlestick = (props: any) => {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
+    const ohlc = data.ohlc;
     return (
       <Card className="text-sm">
         <CardContent className="p-2">
           <p className="font-bold">{format(new Date(data.date), 'PPpp')}</p>
-          <p>Open: {data.open.toFixed(5)}</p>
-          <p>High: {data.high.toFixed(5)}</p>
-          <p>Low: {data.low.toFixed(5)}</p>
-          <p>Close: {data.close.toFixed(5)}</p>
+          <p>Open: {ohlc[0].toFixed(5)}</p>
+          <p>High: {ohlc[1].toFixed(5)}</p>
+          <p>Low: {ohlc[2].toFixed(5)}</p>
+          <p>Close: {ohlc[3].toFixed(5)}</p>
         </CardContent>
       </Card>
     );
@@ -106,10 +98,16 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
     );
   }
   
+  const chartData = data.map(d => ({
+    date: d.date,
+    ohlc: [d.open, d.high, d.low, d.close]
+  }));
+
   const domain: [number, number] = [
     Math.min(...data.map(d => d.low)),
     Math.max(...data.map(d => d.high))
   ];
+
   const yAxisTickFormatter = (value: number) => {
     const isForex = symbol.includes('/');
     return isForex ? value.toFixed(5) : value.toFixed(2);
@@ -127,7 +125,7 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
         <div className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={data}
+              data={chartData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -148,8 +146,8 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
               <Bar
-                dataKey="close"
-                shape={<CustomCandlestick />}
+                dataKey="ohlc"
+                shape={<Candlestick />}
               >
               </Bar>
             </BarChart>
