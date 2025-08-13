@@ -77,7 +77,7 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     if (!symbol) return { error: "Commodity symbol is required." };
     // For commodities, the function name is the commodity symbol itself.
     const apiFunction = symbol;
-    const apiInterval = commodityIntervalMap[interval] || 'daily';
+    const apiInterval = (commodityIntervalMap as any)[interval] || 'daily';
     url = `https://www.alphavantage.co/query?function=${apiFunction}&interval=${apiInterval}&apikey=${apiKey}`;
     dataKey = 'data';
     analysisSymbol = symbol;
@@ -102,7 +102,7 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     if (!timeSeries) {
       const errorMessage = isCommodity 
         ? `Could not find data for commodity ${analysisSymbol}. It may not be supported or the API limit was reached.`
-        : 'Could not find time series data in the response. The symbol/currency may be invalid or the API limit reached.';
+        : `Could not find time series data in the response. The symbol/currency may be invalid or the API limit reached. The data key used was '${dataKey}'.`;
       throw new Error(errorMessage);
     }
     
