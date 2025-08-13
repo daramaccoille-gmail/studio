@@ -22,19 +22,28 @@ interface StockChartProps {
 }
 
 const CustomCandlestick = (props: any) => {
-  const { x, y, width, height, low, high, open, close } = props;
+  const { x, y, width, height, low, high, open, close, yAxis } = props;
+  if (!yAxis) return null;
+
   const isBullish = close >= open;
   const fill = isBullish ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))';
   const stroke = fill;
 
+  const yDomain = yAxis.scale.domain();
+  const yRange = yAxis.scale.range();
+  
+  const getY = (value: number) => {
+    return yRange[0] - ((value - yDomain[0]) / (yDomain[1] - yDomain[0])) * (yRange[0] - yRange[1]);
+  }
+
   // The y-coordinates are inverted in recharts
-  const bodyY = isBullish ? y(close) : y(open);
-  const bodyHeight = Math.max(1, Math.abs(y(close) - y(open)));
+  const bodyY = isBullish ? getY(close) : getY(open);
+  const bodyHeight = Math.max(1, Math.abs(getY(close) - getY(open)));
   
   return (
     <g stroke={stroke} fill="none" strokeWidth="1">
       {/* Wick */}
-      <path d={`M ${x + width / 2},${y(high)} L ${x + width / 2},${y(low)}`} />
+      <path d={`M ${x + width / 2},${getY(high)} L ${x + width / 2},${getY(low)}`} />
       {/* Body */}
       <rect x={x} y={bodyY} width={width} height={bodyHeight} fill={fill} />
     </g>
@@ -140,6 +149,7 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
                 tick={{ fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
+                dataKey="close"
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
               
