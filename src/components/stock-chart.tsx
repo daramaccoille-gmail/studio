@@ -8,6 +8,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  Bar,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Skeleton } from './ui/skeleton';
@@ -26,9 +27,10 @@ const CustomCandlestick = (props: any) => {
   const fill = isBullish ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))';
   const stroke = fill;
 
-  const bodyHeight = Math.abs(y(close) - y(open));
-  const bodyY = Math.min(y(open), y(close));
-
+  // The y-coordinates are inverted in recharts
+  const bodyY = isBullish ? y(close) : y(open);
+  const bodyHeight = Math.max(1, Math.abs(y(close) - y(open)));
+  
   return (
     <g stroke={stroke} fill="none" strokeWidth="1">
       {/* Wick */}
@@ -132,21 +134,19 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
                 tickLine={false}
               />
               <YAxis
-                domain={['dataMin', 'dataMax']}
+                domain={domain}
                 orientation="right"
                 tickFormatter={yAxisTickFormatter}
                 tick={{ fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
-                scale="log"
-                allowDataOverflow
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
               
                 {isCommodity ? (
                     <Line type="monotone" dataKey="close" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
                 ) : (
-                     <Line dataKey="close" shape={<CustomCandlestick />} stroke="transparent" />
+                     <Bar dataKey="close" shape={<CustomCandlestick />} />
                 )}
             </ComposedChart>
           </ResponsiveContainer>

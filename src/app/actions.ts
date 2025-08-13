@@ -14,7 +14,7 @@ interface ActionParams {
 interface IntervalMapping {
   [key: string]: {
     apiFunction: 'TIME_SERIES_INTRADAY' | 'TIME_SERIES_DAILY' | 'FX_INTRADAY' | 'FX_DAILY' | 'COMMODITIES';
-    apiInterval?: '5min' | '30min' | '60min';
+    apiInterval?: '5min' | '30min' | '60min' | 'daily' | 'weekly' | 'monthly';
     dataKey: string;
   };
 }
@@ -33,11 +33,13 @@ const forexIntervalMap: IntervalMapping = {
   D1: { apiFunction: 'FX_DAILY', dataKey: 'Time Series FX (Daily)' },
 };
 
-const commodityIntervalMap: Omit<IntervalMapping, 'D1'> & { D1: { apiFunction: 'COMMODITIES'; apiInterval: 'daily', dataKey: string } } = {
-    M5: { apiFunction: 'COMMODITIES', apiInterval: '5min', dataKey: 'data' },
-    M30: { apiFunction: 'COMMODITIES', apiInterval: '30min', dataKey: 'data' },
-    H1: { apiFunction: 'COMMODITIES', apiInterval: '60min', dataKey: 'data' },
-    D1: { apiFunction: 'COMMODITIES', apiInterval: 'daily', dataKey: 'data' },
+const commodityIntervalMap = {
+    M5: '5min',
+    M30: '30min',
+    H1: '60min',
+    D1: 'daily',
+    W1: 'weekly',
+    M1: 'monthly'
 };
 
 
@@ -73,9 +75,10 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     dataKey = forexMap.dataKey;
   } else { // commodities
     if (!symbol) return { error: "Commodity symbol is required." };
-    const commodityMap = commodityIntervalMap[interval];
-    const apiInterval = interval === 'D1' ? 'daily' : commodityMap.apiInterval;
-    url = `https://www.alphavantage.co/query?function=${commodityMap.apiFunction}&symbol=${symbol}&interval=${apiInterval}&apikey=${apiKey}`;
+    // For commodities, the function name is the commodity symbol itself.
+    const apiFunction = symbol;
+    const apiInterval = commodityIntervalMap[interval] || 'daily';
+    url = `https://www.alphavantage.co/query?function=${apiFunction}&interval=${apiInterval}&apikey=${apiKey}`;
     dataKey = 'data';
     analysisSymbol = symbol;
   }
@@ -106,9 +109,10 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     let formattedData: StockData[];
 
     if (isCommodity) {
+        // The commodity API returns an array of objects with 'date', and 'value'
         formattedData = (rawData.data as any[])
             .map((item: any) => ({
-                date: new Date(item.timestamp * 1000).toISOString(),
+                date: new Date(item.date).toISOString(),
                 open: parseFloat(item.value),
                 high: parseFloat(item.value),
                 low: parseFloat(item.value),
