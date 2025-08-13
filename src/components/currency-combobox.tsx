@@ -24,9 +24,10 @@ interface CurrencyComboboxProps {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  currencyList?: string[];
 }
 
-export function CurrencyCombobox({ value, onChange, placeholder }: CurrencyComboboxProps) {
+export function CurrencyCombobox({ value, onChange, placeholder, currencyList = popularCurrencies }: CurrencyComboboxProps) {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -47,7 +48,7 @@ export function CurrencyCombobox({ value, onChange, placeholder }: CurrencyCombo
           <CommandInput
             placeholder="Search or type..."
             onValueChange={(search) => {
-              if (!popularCurrencies.some(c => c.toLowerCase() === search.toLowerCase())) {
+              if (!currencyList.some(c => c.toLowerCase() === search.toLowerCase())) {
                  onChange(search.toUpperCase());
               }
             }}
@@ -56,7 +57,7 @@ export function CurrencyCombobox({ value, onChange, placeholder }: CurrencyCombo
           <CommandList>
             <CommandEmpty>No currency found.</CommandEmpty>
             <CommandGroup>
-              {popularCurrencies.map((currency) => (
+              {currencyList.map((currency) => (
                 <CommandItem
                   key={currency}
                   value={currency}

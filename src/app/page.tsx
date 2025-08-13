@@ -12,10 +12,11 @@ import AiAnalysisCard from '@/components/ai-analysis-card';
 import type { StockData } from '@/lib/types';
 import { Label } from '@/components/ui/label';
 import { CurrencyCombobox } from '@/components/currency-combobox';
+import { commodities } from '@/lib/currencies';
 
 
 type Interval = 'M5' | 'M30' | 'H1' | 'D1';
-type DataType = 'stock' | 'forex';
+type DataType = 'stock' | 'forex' | 'commodities';
 
 export default function Home() {
   const [symbol, setSymbol] = useState('IBM');
@@ -28,6 +29,7 @@ export default function Home() {
   const [dataType, setDataType] = useState<DataType>('forex');
   const [fromCurrency, setFromCurrency] = useState('XAU');
   const [toCurrency, setToCurrency] = useState('USD');
+  const [commodity, setCommodity] = useState('WTI');
   const [displaySymbol, setDisplaySymbol] = useState('XAU/USD');
 
   const handleFetchData = (params: {
@@ -35,10 +37,11 @@ export default function Home() {
       fetchType: DataType,
       fetchSymbol?: string,
       fetchFromCurrency?: string,
-      fetchToCurrency?: string
+      fetchToCurrency?: string,
+      fetchCommodity?: string,
   }) => {
     startTransition(async () => {
-      const { fetchInterval, fetchType, fetchSymbol, fetchFromCurrency, fetchToCurrency } = params;
+      const { fetchInterval, fetchType, fetchSymbol, fetchFromCurrency, fetchToCurrency, fetchCommodity } = params;
 
       let result;
       if (fetchType === 'stock') {
@@ -51,7 +54,7 @@ export default function Home() {
             setDisplaySymbol(fetchSymbol!);
             setSymbol(fetchSymbol!);
         }
-      } else {
+      } else if (fetchType === 'forex') {
         result = await getStockDataAndAnalysis({
           interval: fetchInterval,
           type: 'forex',
@@ -63,6 +66,16 @@ export default function Home() {
             setDisplaySymbol(forexSymbol);
             setFromCurrency(fetchFromCurrency!);
             setToCurrency(fetchToCurrency!);
+        }
+      } else { // commodities
+         result = await getStockDataAndAnalysis({
+          interval: fetchInterval,
+          type: 'commodities',
+          symbol: fetchCommodity
+        });
+        if (!result.error) {
+            setDisplaySymbol(fetchCommodity!);
+            setCommodity(fetchCommodity!);
         }
       }
 
@@ -92,6 +105,8 @@ export default function Home() {
       handleFetchData({ fetchSymbol: inputSymbol.trim().toUpperCase(), fetchInterval: interval, fetchType: 'stock' });
     } else if (dataType === 'forex' && fromCurrency && toCurrency) {
       handleFetchData({ fetchFromCurrency: fromCurrency, fetchToCurrency: toCurrency, fetchInterval: interval, fetchType: 'forex' });
+    } else if (dataType === 'commodities' && commodity) {
+      handleFetchData({ fetchCommodity: commodity, fetchInterval: interval, fetchType: 'commodities' });
     }
   };
 
@@ -100,8 +115,10 @@ export default function Home() {
     setInterval(newInterval);
      if (dataType === 'stock') {
       handleFetchData({ fetchSymbol: symbol, fetchInterval: newInterval, fetchType: 'stock' });
-    } else {
+    } else if (dataType === 'forex') {
       handleFetchData({ fetchFromCurrency: fromCurrency, fetchToCurrency: toCurrency, fetchInterval: newInterval, fetchType: 'forex' });
+    } else {
+       handleFetchData({ fetchCommodity: commodity, fetchInterval: newInterval, fetchType: 'commodities' });
     }
   };
 
@@ -113,11 +130,82 @@ export default function Home() {
     if (newType === 'forex') {
         setDisplaySymbol(`${fromCurrency}/${toCurrency}`);
         handleFetchData({ fetchInterval: interval, fetchType: 'forex', fetchFromCurrency: fromCurrency, fetchToCurrency: toCurrency });
-    } else { // stock
+    } else if (newType === 'stock') {
         setDisplaySymbol(symbol);
         handleFetchData({ fetchInterval: interval, fetchType: 'stock', fetchSymbol: symbol });
+    } else { // commodities
+        setDisplaySymbol(commodity);
+        handleFetchData({ fetchInterval: interval, fetchType: 'commodities', fetchCommodity: commodity });
     }
   };
+
+  const renderForm = () => {
+    switch(dataType) {
+      case 'stock':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor="stock-symbol" className="text-lg font-semibold">Stock Symbol</Label>
+            <div className="flex w-full items-center space-x-2">
+              <Input
+                id="stock-symbol"
+                type="text"
+                placeholder="e.g. AAPL"
+                value={inputSymbol}
+                onChange={(e) => setInputSymbol(e.target.value)}
+                className="bg-card"
+              />
+              <Button type="submit" disabled={isPending}>
+                {isPending ? <Loader className="animate-spin" /> : <Search />}
+              </Button>
+            </div>
+          </div>
+        );
+      case 'forex':
+        return (
+           <div className="space-y-4">
+              <div className="space-y-2">
+                 <Label htmlFor="from-currency" className="text-lg font-semibold">From Currency</Label>
+                 <CurrencyCombobox
+                    value={fromCurrency}
+                    onChange={setFromCurrency}
+                    placeholder="From"
+                  />
+              </div>
+               <div className="flex justify-center">
+                  <ArrowRightLeft className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="space-y-2">
+                   <Label htmlFor="to-currency" className="text-lg font-semibold">To Currency</Label>
+                  <CurrencyCombobox
+                    value={toCurrency}
+                    onChange={setToCurrency}
+                    placeholder="To"
+                  />
+              </div>
+              <Button type="submit" disabled={isPending} className="w-full">
+                {isPending ? <Loader className="animate-spin" /> : 'Get Forex Data'}
+              </Button>
+          </div>
+        );
+        case 'commodities':
+          return (
+             <div className="space-y-4">
+                <div className="space-y-2">
+                   <Label htmlFor="commodity" className="text-lg font-semibold">Commodity</Label>
+                   <CurrencyCombobox
+                      value={commodity}
+                      onChange={setCommodity}
+                      placeholder="Commodity"
+                      currencyList={commodities}
+                    />
+                </div>
+                <Button type="submit" disabled={isPending} className="w-full">
+                  {isPending ? <Loader className="animate-spin" /> : 'Get Commodity Data'}
+                </Button>
+            </div>
+          );
+    }
+  }
 
 
   return (
@@ -139,57 +227,16 @@ export default function Home() {
                 <div className="space-y-2">
                     <h2 className="text-lg font-semibold">Data Type</h2>
                     <Tabs value={dataType} onValueChange={handleDataTypeChange} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
+                        <TabsList className="grid w-full grid-cols-3">
                             <TabsTrigger value="stock">Stocks</TabsTrigger>
                             <TabsTrigger value="forex">Forex</TabsTrigger>
+                            <TabsTrigger value="commodities">Commodities</TabsTrigger>
                         </TabsList>
                     </Tabs>
                 </div>
                 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {dataType === 'stock' ? (
-                     <div className="space-y-2">
-                      <Label htmlFor="stock-symbol" className="text-lg font-semibold">Stock Symbol</Label>
-                      <div className="flex w-full items-center space-x-2">
-                        <Input
-                          id="stock-symbol"
-                          type="text"
-                          placeholder="e.g. AAPL"
-                          value={inputSymbol}
-                          onChange={(e) => setInputSymbol(e.target.value)}
-                          className="bg-card"
-                        />
-                        <Button type="submit" disabled={isPending}>
-                          {isPending ? <Loader className="animate-spin" /> : <Search />}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                           <Label htmlFor="from-currency" className="text-lg font-semibold">From Currency</Label>
-                           <CurrencyCombobox
-                              value={fromCurrency}
-                              onChange={setFromCurrency}
-                              placeholder="From"
-                            />
-                        </div>
-                         <div className="flex justify-center">
-                            <ArrowRightLeft className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div className="space-y-2">
-                             <Label htmlFor="to-currency" className="text-lg font-semibold">To Currency</Label>
-                            <CurrencyCombobox
-                              value={toCurrency}
-                              onChange={setToCurrency}
-                              placeholder="To"
-                            />
-                        </div>
-                        <Button type="submit" disabled={isPending} className="w-full">
-                          {isPending ? <Loader className="animate-spin" /> : 'Get Forex Data'}
-                        </Button>
-                    </div>
-                  )}
+                  {renderForm()}
                 </form>
 
                 <div className="space-y-2">

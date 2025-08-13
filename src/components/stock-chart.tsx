@@ -2,14 +2,12 @@
 
 import {
   Line,
-  LineChart,
   ComposedChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-  Rectangle,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Skeleton } from './ui/skeleton';
@@ -22,47 +20,22 @@ interface StockChartProps {
   symbol: string;
 }
 
-const Candlestick = (props: any) => {
-  const { x, y, width, height, low, high, open, close } = props.payload;
-  const {yAxis} = props;
-
-  if (!yAxis || !yAxis.domain) {
-    return null; // Don't render if yAxis properties are not available
-  }
-  
+const CustomCandlestick = (props: any) => {
+  const { x, y, width, height, low, high, open, close } = props;
   const isBullish = close >= open;
   const fill = isBullish ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))';
   const stroke = fill;
 
-  const yDomain = yAxis.domain;
-  const yRange = yAxis.range;
-  const yRatio = (yRange[0] - yRange[1]) / (yDomain[1] - yDomain[0]);
-  
-  const yVal = (val: number) => yRange[1] + (yDomain[1] - val) * yRatio;
-
-  const yOpen = yVal(open);
-  const yClose = yVal(close);
-  const yHigh = yVal(high);
-  const yLow = yVal(low);
-
-  const rectY = Math.min(yOpen, yClose);
-  const rectHeight = Math.max(1, Math.abs(yOpen - yClose));
+  const bodyHeight = Math.abs(y(close) - y(open));
+  const bodyY = Math.min(y(open), y(close));
 
   return (
-     <g stroke={stroke} fill="none" strokeWidth="1">
-       {/* Wick */}
-      <path
-        d={`M ${x + width / 2},${yHigh} L ${x + width / 2},${yLow}`}
-      />
-       {/* Body */}
-       <rect
-         x={x}
-         y={rectY}
-         width={width}
-         height={rectHeight}
-         fill={fill}
-       />
-     </g>
+    <g stroke={stroke} fill="none" strokeWidth="1">
+      {/* Wick */}
+      <path d={`M ${x + width / 2},${y(high)} L ${x + width / 2},${y(low)}`} />
+      {/* Body */}
+      <rect x={x} y={bodyY} width={width} height={bodyHeight} fill={fill} />
+    </g>
   );
 };
 
@@ -129,7 +102,10 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
 
   const yAxisTickFormatter = (value: number) => {
     const isForex = symbol.includes('/');
-    return isForex ? value.toFixed(5) : value.toFixed(2);
+    if (isForex || value < 10) {
+       return value.toFixed(4);
+    }
+    return value.toFixed(2);
   }
   
   return (
@@ -154,28 +130,23 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
                 tick={{ fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
-                // interval="preserveStartEnd"
               />
               <YAxis
-                domain={domain}
+                domain={['dataMin', 'dataMax']}
                 orientation="right"
                 tickFormatter={yAxisTickFormatter}
                 tick={{ fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
+                scale="log"
+                allowDataOverflow
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
               
                 {isCommodity ? (
                     <Line type="monotone" dataKey="close" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
                 ) : (
-                    <Line
-                        type="linear"
-                        dataKey="close"
-                        strokeWidth={0}
-                        shape={<Candlestick />}
-                        isAnimationActive={false}
-                     />
+                     <Line dataKey="close" shape={<CustomCandlestick />} stroke="transparent" />
                 )}
             </ComposedChart>
           </ResponsiveContainer>

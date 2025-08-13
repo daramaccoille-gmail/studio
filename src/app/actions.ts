@@ -2,12 +2,11 @@
 
 import { analyzeCandlestickPattern } from '@/ai/flows/analyze-candlestick-pattern';
 import type { StockData } from '@/lib/types';
-import { commodities } from '@/lib/currencies';
 
 interface ActionParams {
   symbol?: string;
   interval: 'M5' | 'M30' | 'H1' | 'D1';
-  type: 'stock' | 'forex';
+  type: 'stock' | 'forex' | 'commodities';
   fromCurrency?: string;
   toCurrency?: string;
 }
@@ -15,7 +14,7 @@ interface ActionParams {
 interface IntervalMapping {
   [key: string]: {
     apiFunction: 'TIME_SERIES_INTRADAY' | 'TIME_SERIES_DAILY' | 'FX_INTRADAY' | 'FX_DAILY' | 'COMMODITIES';
-    apiInterval?: '5min' | '30min' | '60min' | 'daily';
+    apiInterval?: '5min' | '30min' | '60min';
     dataKey: string;
   };
 }
@@ -52,7 +51,7 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
   let url;
   let dataKey;
   let analysisSymbol;
-  let isCommodity = false;
+  let isCommodity = type === 'commodities';
 
   if (type === 'stock') {
     if (!symbol) return { error: "Stock symbol is required." };
@@ -63,25 +62,22 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     }
     dataKey = stockMap.dataKey;
     analysisSymbol = symbol;
-  } else { // forex or commodity
+  } else if (type === 'forex') {
     if (!fromCurrency || !toCurrency) return { error: "From and To currencies are required for forex." };
-    
-    isCommodity = commodities.includes(fromCurrency);
     analysisSymbol = `${fromCurrency}/${toCurrency}`;
-
-    if (isCommodity) {
-        const commodityMap = commodityIntervalMap[interval];
-        const apiInterval = interval === 'D1' ? 'daily' : commodityMap.apiInterval;
-        url = `https://www.alphavantage.co/query?function=${commodityMap.apiFunction}&symbol=${fromCurrency}&interval=${apiInterval}&apikey=${apiKey}`;
-        dataKey = commodityMap.dataKey;
-    } else {
-        const forexMap = forexIntervalMap[interval];
-        url = `https://www.alphavantage.co/query?function=${forexMap.apiFunction}&from_symbol=${fromCurrency}&to_symbol=${toCurrency}&apikey=${apiKey}`;
-        if (forexMap.apiInterval) {
-        url += `&interval=${forexMap.apiInterval}`;
-        }
-        dataKey = forexMap.dataKey;
+    const forexMap = forexIntervalMap[interval];
+    url = `https://www.alphavantage.co/query?function=${forexMap.apiFunction}&from_symbol=${fromCurrency}&to_symbol=${toCurrency}&apikey=${apiKey}`;
+    if (forexMap.apiInterval) {
+      url += `&interval=${forexMap.apiInterval}`;
     }
+    dataKey = forexMap.dataKey;
+  } else { // commodities
+    if (!symbol) return { error: "Commodity symbol is required." };
+    const commodityMap = commodityIntervalMap[interval];
+    const apiInterval = interval === 'D1' ? 'daily' : commodityMap.apiInterval;
+    url = `https://www.alphavantage.co/query?function=${commodityMap.apiFunction}&symbol=${symbol}&interval=${apiInterval}&apikey=${apiKey}`;
+    dataKey = 'data';
+    analysisSymbol = symbol;
   }
 
 
@@ -110,11 +106,11 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     let formattedData: StockData[];
 
     if (isCommodity) {
-        formattedData = (timeSeries as any[])
-            .map(item => ({
-                date: new Date(parseInt(item.timestamp)).toISOString(),
+        formattedData = (rawData.data as any[])
+            .map((item: any) => ({
+                date: new Date(item.timestamp * 1000).toISOString(),
                 open: parseFloat(item.value),
-                high: parseFloat(item.value), // Commodity API may not provide OHLC, using value for all
+                high: parseFloat(item.value),
                 low: parseFloat(item.value),
                 close: parseFloat(item.value),
             }))
@@ -122,7 +118,7 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     } else {
         formattedData = Object.entries(timeSeries)
           .map(([time, values]: [string, any]) => ({
-            date: time,
+            date: new Date(time).toISOString(),
             open: parseFloat(values['1. open']),
             high: parseFloat(values['2. high']),
             low: parseFloat(values['3. low']),
