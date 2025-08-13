@@ -34,9 +34,6 @@ const forexIntervalMap: IntervalMapping = {
 };
 
 const commodityIntervalMap = {
-    M5: '5min',
-    M30: '30min',
-    H1: '60min',
     D1: 'daily',
     W1: 'weekly',
     M1: 'monthly'
@@ -94,16 +91,18 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     if (rawData['Error Message']) {
       throw new Error(`API Error: ${rawData['Error Message']}`);
     }
+    
+    // The free tier has a low rate limit, this handles the note gracefully.
     if (rawData['Note']) {
        return { error: `API Limit Note: ${rawData['Note']}` };
     }
 
-    console.log("Raw API response:", rawData);
     const timeSeries = rawData[dataKey];
     if (!timeSeries) {
+      console.error("Could not find time series data for key:", dataKey, "in response:", rawData);
       const errorMessage = isCommodity 
         ? `Could not find data for commodity ${analysisSymbol}. It may not be supported or the API limit was reached.`
-        : `Could not find time series data in the response. The symbol/currency may be invalid or the API limit reached. The data key used was '${dataKey}'.`;
+        : `Could not find time series data in the response. The symbol/currency may be invalid or the API limit reached.`;
       throw new Error(errorMessage);
     }
     
@@ -145,6 +144,7 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     
     return { data: formattedData, analysis: analysisResult.analysis };
   } catch (error: any) {
+    console.error("Error in getStockDataAndAnalysis:", error);
     return { error: error.message || 'An unknown error occurred.' };
   }
 }

@@ -31,6 +31,7 @@ export default function Home() {
   const [toCurrency, setToCurrency] = useState('USD');
   const [commodity, setCommodity] = useState('WTI');
   const [displaySymbol, setDisplaySymbol] = useState('IBM');
+  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
 
   const handleFetchData = (params: {
       fetchInterval: Interval,
@@ -41,6 +42,9 @@ export default function Home() {
       fetchCommodity?: string,
   }) => {
     startTransition(async () => {
+      // Reset premium unlock state on new data fetch
+      setIsPremiumUnlocked(false);
+
       const { fetchInterval, fetchType, fetchSymbol, fetchFromCurrency, fetchToCurrency, fetchCommodity } = params;
 
       let result;
@@ -59,7 +63,7 @@ export default function Home() {
           interval: fetchInterval,
           type: 'forex',
           fromCurrency: fetchFromCurrency,
-          toCurrency: fetchToCurrency,
+          toCurrency: toCurrency,
         });
         if (!result.error) {
             const forexSymbol = `${fetchFromCurrency}/${fetchToCurrency}`;
@@ -138,6 +142,16 @@ export default function Home() {
         handleFetchData({ fetchInterval: interval, fetchType: 'commodities', fetchCommodity: commodity });
     }
   };
+  
+  const handleUnlock = () => {
+    // In a real application, this would trigger the Stripe checkout flow.
+    // For now, we just simulate a successful payment.
+    setIsPremiumUnlocked(true);
+    toast({
+        title: "Analysis Unlocked!",
+        description: "Thank you for your purchase.",
+    });
+  }
 
   const renderForm = () => {
     switch(dataType) {
@@ -251,7 +265,13 @@ export default function Home() {
                   </Tabs>
                 </div>
                 
-                <AiAnalysisCard analysis={analysis} isLoading={isPending} />
+                <AiAnalysisCard
+                  analysis={analysis}
+                  isLoading={isPending}
+                  isPremium={true}
+                  isUnlocked={isPremiumUnlocked}
+                  onUnlock={handleUnlock}
+                />
               </div>
             </div>
 
