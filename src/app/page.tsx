@@ -117,15 +117,7 @@ export default function Home() {
   const handleIntervalChange = (value: string) => {
     const newInterval = value as Interval;
     setInterval(newInterval);
-     if (dataType === 'stock') {
-      handleFetchData({ fetchSymbol: symbol, fetchInterval: newInterval, fetchType: 'stock' });
-    } else if (dataType === 'forex') {
-      handleFetchData({ fetchFromCurrency: fromCurrency, fetchToCurrency: toCurrency, fetchInterval: newInterval, fetchType: 'forex' });
-    } else {
-       handleFetchData({ fetchCommodity: commodity, fetchInterval: newInterval, fetchType: 'commodities' });
-    }
   };
-
   const handleDataTypeChange = (value: string) => {
     const newType = value as DataType;
     setDataType(newType);
@@ -133,13 +125,10 @@ export default function Home() {
     setAnalysis('');
     if (newType === 'forex') {
         setDisplaySymbol(`${fromCurrency}/${toCurrency}`);
-        handleFetchData({ fetchInterval: interval, fetchType: 'forex', fetchFromCurrency: fromCurrency, fetchToCurrency: toCurrency });
     } else if (newType === 'stock') {
         setDisplaySymbol(symbol);
-        handleFetchData({ fetchInterval: interval, fetchType: 'stock', fetchSymbol: symbol });
     } else { // commodities
         setDisplaySymbol(commodity);
-        handleFetchData({ fetchInterval: interval, fetchType: 'commodities', fetchCommodity: commodity });
     }
   };
   
@@ -276,7 +265,7 @@ export default function Home() {
             </div>
 
             <div className="lg:col-span-9">
-              <StockChart data={data} isLoading={isPending} symbol={displaySymbol} />
+              <StockChart data={data} isLoading={isPending} symbol={displaySymbol} dataType={dataType} />
             </div>
           </div>
         </div>
@@ -284,3 +273,6 @@ export default function Home() {
     </div>
   );
 }
+
+
+

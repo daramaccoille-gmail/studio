@@ -15,10 +15,12 @@ import { Skeleton } from './ui/skeleton';
 import type { StockData } from '@/lib/types';
 import { format } from 'date-fns';
 
+type DataType = 'stock' | 'forex' | 'commodities';
 interface StockChartProps {
   data: StockData[];
   isLoading: boolean;
   symbol: string;
+  dataType: DataType;
 }
 
 const CustomCandlestick = (props: any) => {
@@ -69,7 +71,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export default function StockChart({ data, isLoading, symbol }: StockChartProps) {
+export default function StockChart({ data, isLoading, symbol, dataType }: StockChartProps) {
   if (isLoading) {
     return (
       <Card>
@@ -103,7 +105,6 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
   }
   
   const chartData = data;
-  const isCommodity = data.every(d => d.open === d.high && d.open === d.low && d.open === d.close);
 
 
   const domain: [number, number] = [
@@ -111,8 +112,7 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
     Math.max(...data.map(d => d.high))
   ];
 
-  const yAxisTickFormatter = (value: number) => {
-    const isForex = symbol.includes('/');
+  const yAxisTickFormatter = (value: number) => {    const isForex = symbol.includes('/');
     if (isForex || value < 10) {
        return value.toFixed(4);
     }
@@ -121,8 +121,8 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
   
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{symbol} {isCommodity ? 'Chart' : 'Candlestick Chart'}</CardTitle>
+ <CardHeader>
+ <CardTitle>{symbol} Candlestick Chart</CardTitle>
         <CardDescription>
           Showing financial data for {symbol}. Hover over the chart for details.
         </CardDescription>
@@ -149,15 +149,13 @@ export default function StockChart({ data, isLoading, symbol }: StockChartProps)
                 tick={{ fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
-                dataKey="close"
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
-              
-                {isCommodity ? (
-                    <Line type="monotone" dataKey="close" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
-                ) : (
-                     <Bar dataKey="close" shape={<CustomCandlestick />} />
-                )}
+              {dataType === 'commodities' ? (
+                <Line type="monotone" dataKey="close" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
+              ) : (
+                <Bar dataKey="date" shape={<CustomCandlestick />} />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>

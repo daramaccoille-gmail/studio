@@ -7,6 +7,7 @@
   packages = [
     pkgs.nodejs_20
     pkgs.zulu
+    pkgs.doas-sudo-shim
   ];
   # Sets environment variables in the workspace
   env = {};
