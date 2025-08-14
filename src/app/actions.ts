@@ -137,6 +137,7 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
             const low = parseFloat(values['3. low']);
             const close = parseFloat(values['4. close']);
 
+            // This is the robust check to ensure no NaN values are created.
             if (!isNaN(open) && !isNaN(high) && !isNaN(low) && !isNaN(close)) {
                 return {
                     date: new Date(time).toISOString(),
@@ -153,7 +154,7 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     }
 
     if (formattedData.length === 0) {
-      return { error: 'No data points were found for this symbol/currency. It might be an invalid symbol or no data is available for the selected interval.' };
+      return { error: 'No valid data points were found for this symbol/currency after filtering. It might be an invalid symbol or no data is available for the selected interval.' };
     }
 
     const analysisResult = await analyzeCandlestickPattern({
