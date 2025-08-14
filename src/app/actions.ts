@@ -28,7 +28,7 @@ const forexIntervalMap = {
 
 const commodityIntervalMap: { [key: string]: 'daily' | 'weekly' | 'monthly' } = {
     D1: 'daily',
-    M5: 'daily',
+    M5: 'daily', // commodities often don't have intraday, default to daily
     M30: 'daily',
     H1: 'daily',
 };
