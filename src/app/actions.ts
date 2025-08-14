@@ -1,3 +1,4 @@
+
 'use server';
 
 import { analyzeCandlestickPattern } from '@/ai/flows/analyze-candlestick-pattern';
@@ -109,13 +110,16 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
         }
         formattedData = (timeSeries as any[])
             .map((item: any) => {
-                if(item.date && item.value && !isNaN(parseFloat(item.value))) {
-                    return {
-                        date: new Date(item.date).toISOString(),
-                        open: parseFloat(item.value),
-                        high: parseFloat(item.value),
-                        low: parseFloat(item.value),
-                        close: parseFloat(item.value),
+                if (item.date && item.value && item.value !== '.') {
+                    const val = parseFloat(item.value);
+                    if (!isNaN(val)) {
+                        return {
+                            date: new Date(item.date).toISOString(),
+                            open: val,
+                            high: val,
+                            low: val,
+                            close: val,
+                        };
                     }
                 }
                 return null;
@@ -128,14 +132,19 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
         }
         formattedData = Object.entries(timeSeries)
           .map(([time, values]: [string, any]) => {
-            if(values['1. open'] && values['2. high'] && values['3. low'] && values['4. close']) {
+            const open = parseFloat(values['1. open']);
+            const high = parseFloat(values['2. high']);
+            const low = parseFloat(values['3. low']);
+            const close = parseFloat(values['4. close']);
+
+            if (!isNaN(open) && !isNaN(high) && !isNaN(low) && !isNaN(close)) {
                 return {
                     date: new Date(time).toISOString(),
-                    open: parseFloat(values['1. open']),
-                    high: parseFloat(values['2. high']),
-                    low: parseFloat(values['3. low']),
-                    close: parseFloat(values['4. close']),
-                }
+                    open,
+                    high,
+                    low,
+                    close,
+                };
             }
             return null;
           })
