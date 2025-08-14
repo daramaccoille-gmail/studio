@@ -59,7 +59,7 @@ const prompt = ai.definePrompt({
   Time Interval: {{{interval}}}
   Graph Data: {{{graphData}}}
 
-  Provide a very concise analysis and forecast  of the candlestick patterns and trends for the timeframe shown. At the end quailify the forecast with Strong sell, sell, pass, buy, Strong buy and indicate how long this action should last.
+  Provide a concise and informative analysis of the candlestick patterns and trends.
 `,
 });
 
