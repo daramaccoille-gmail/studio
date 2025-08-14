@@ -22,6 +22,7 @@ interface StockChartProps {
   isLoading: boolean;
   symbol: string;
   dataType: DataType;
+  hasSearched: boolean;
 }
 
 const CustomCandlestick = (props: any) => {
@@ -72,7 +73,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export default function StockChart({ data, isLoading, symbol, dataType }: StockChartProps) {
+export default function StockChart({ data, isLoading, symbol, dataType, hasSearched }: StockChartProps) {
   if (isLoading) {
     return (
       <Card>
@@ -91,14 +92,19 @@ export default function StockChart({ data, isLoading, symbol, dataType }: StockC
     return (
       <Card>
         <CardHeader>
-          <CardTitle>No Data Available</CardTitle>
+          <CardTitle>{hasSearched ? 'No Data Available' : 'Welcome to CandleView'}</CardTitle>
           <CardDescription>
-            Could not retrieve chart data. Please try a different symbol or check your API key.
+            {hasSearched
+              ? 'Could not retrieve chart data. Please try a different symbol or check your API key.'
+              : 'Select a data type, enter a symbol, and click search to view financial data.'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[400px] w-full flex items-center justify-center bg-muted rounded-md">
-            <p className="text-muted-foreground">No data to display.</p>
+            <p className="text-muted-foreground">
+              {hasSearched ? 'No data to display.' : 'Your chart will appear here.'}
+            </p>
           </div>
         </CardContent>
       </Card>

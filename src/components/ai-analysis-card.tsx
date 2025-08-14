@@ -11,6 +11,7 @@ interface AiAnalysisCardProps {
   isPremium?: boolean;
   isUnlocked?: boolean;
   onUnlock?: () => void;
+  hasSearched: boolean;
 }
 
 const CipherText = ({ text }: { text: string }) => {
@@ -24,6 +25,7 @@ export default function AiAnalysisCard({
   isPremium = false,
   isUnlocked = false,
   onUnlock,
+  hasSearched,
 }: AiAnalysisCardProps) {
   const showPaywall = isPremium && !isUnlocked && analysis && !isLoading;
 
@@ -59,7 +61,10 @@ export default function AiAnalysisCard({
           <p className="text-sm text-muted-foreground">{analysis}</p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No analysis available. Fetch data to generate insights.
+            {hasSearched
+              ? 'No analysis available. Fetch data to generate insights.'
+              : 'AI analysis will appear here after a search.'
+            }
           </p>
         )}
       </CardContent>

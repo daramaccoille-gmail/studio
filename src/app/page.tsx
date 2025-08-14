@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, FormEvent } from 'react';
+import { useState, useTransition, FormEvent } from 'react';
 import { CandlestickChart, Loader, Search, ArrowRightLeft } from 'lucide-react';
 import { getStockDataAndAnalysis } from '@/app/actions';
 import { Button } from '@/components/ui/button';
@@ -30,8 +30,9 @@ export default function Home() {
   const [fromCurrency, setFromCurrency] = useState('XAU');
   const [toCurrency, setToCurrency] = useState('USD');
   const [commodity, setCommodity] = useState('WTI');
-  const [displaySymbol, setDisplaySymbol] = useState('IBM');
+  const [displaySymbol, setDisplaySymbol] = useState('');
   const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleFetchData = (params: {
       fetchInterval: Interval,
@@ -44,6 +45,8 @@ export default function Home() {
     startTransition(async () => {
       // Reset premium unlock state on new data fetch
       setIsPremiumUnlocked(false);
+      if (!hasSearched) setHasSearched(true);
+
 
       const { fetchInterval, fetchType, fetchSymbol, fetchFromCurrency, fetchToCurrency, fetchCommodity } = params;
 
@@ -98,11 +101,6 @@ export default function Home() {
     });
   };
 
-  useEffect(() => {
-    handleFetchData({ fetchSymbol: symbol, fetchInterval: interval, fetchType: 'stock' });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (dataType === 'stock' && inputSymbol.trim()) {
@@ -123,6 +121,7 @@ export default function Home() {
     setDataType(newType);
     setData([]);
     setAnalysis('');
+    setHasSearched(false);
     if (newType === 'forex') {
         setDisplaySymbol(`${fromCurrency}/${toCurrency}`);
     } else if (newType === 'stock') {
@@ -260,12 +259,13 @@ export default function Home() {
                   isPremium={true}
                   isUnlocked={isPremiumUnlocked}
                   onUnlock={handleUnlock}
+                  hasSearched={hasSearched}
                 />
               </div>
             </div>
 
             <div className="lg:col-span-9">
-              <StockChart data={data} isLoading={isPending} symbol={displaySymbol} dataType={dataType} />
+              <StockChart data={data} isLoading={isPending} symbol={displaySymbol} dataType={dataType} hasSearched={hasSearched} />
             </div>
           </div>
         </div>
@@ -273,6 +273,3 @@ export default function Home() {
     </div>
   );
 }
-
-
-
