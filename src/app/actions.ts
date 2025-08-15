@@ -39,39 +39,14 @@ export async function getStockDataAndAnalysis({ symbol, interval, type, fromCurr
     return { error: 'AlphaVantage API key is not configured.' };
   }
 
-  let url: string;
-  let dataKey: string | null = null;
-  let analysisSymbol: string;
-  let isCommodity = type === 'commodities';
+  const { apiFunction, apiInterval, dataKey } = intervalMap[interval];
+  
+  let url = `https://www.alphavantage.co/query?function=${apiFunction}&symbol=${symbol}&apikey=${apiKey}`;
+  if (apiInterval) {
+    url += `&interval=${apiInterval}`;
+  }
 
   try {
-    if (type === 'stock') {
-      if (!symbol) return { error: "Stock symbol is required." };
-      const stockMap = stockIntervalMap[interval];
-      url = `https://www.alphavantage.co/query?function=${stockMap.apiFunction}&symbol=${symbol}&apikey=${apiKey}`;
-      if (stockMap.apiInterval && stockMap.apiFunction.includes('INTRADAY')) {
-        url += `&interval=${stockMap.apiInterval}`;
-      }
-      dataKey = stockMap.dataKey;
-      analysisSymbol = symbol;
-    } else if (type === 'forex') {
-      if (!fromCurrency || !toCurrency) return { error: "From and To currencies are required for forex." };
-      analysisSymbol = `${fromCurrency}/${toCurrency}`;
-      const forexMap = forexIntervalMap[interval];
-      url = `https://www.alphavantage.co/query?function=${forexMap.apiFunction}&from_symbol=${fromCurrency}&to_symbol=${toCurrency}&apikey=${apiKey}`;
-      if (forexMap.apiInterval && forexMap.apiFunction.includes('INTRADAY')) {
-        url += `&interval=${forexMap.apiInterval}`;
-      }
-      dataKey = forexMap.dataKey;
-    } else { // commodities
-      if (!symbol) return { error: "Commodity symbol is required." };
-      const apiFunction = symbol; // e.g. WTI, BRENT
-      const apiInterval = commodityIntervalMap[interval] || 'daily';
-      url = `https://www.alphavantage.co/query?function=${apiFunction}&interval=${apiInterval}&apikey=${apiKey}`;
-      dataKey = 'data'; 
-      analysisSymbol = symbol;
-    }
-
     const response = await fetch(url);
     if (!response.ok) {
         const errorText = await response.text();
